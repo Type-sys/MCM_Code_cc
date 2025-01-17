@@ -1,0 +1,157 @@
+import numpy as np
+import pandas as pd
+
+#定义模糊综合评价（fce）的类
+class fce():
+    def __init__(self, num_zhibiaoji=4, num_pingyuji=5，weights):
+        '''
+        num_pingyuji:评语集中元素的数量
+        num_zhibiaoji:指标集中元素的数量
+        weights:用其他方法得到的权重向量，为1*num_zhibiao(即有几个指标就有几个权重)
+        '''
+        self.weights=weights #将计算得到的权重输入到fce中
+
+    # 偏大型隶属函数
+    def piandaxing_membership_function(self, data, a=25, b=60):
+        ''' 
+        a:隶属函数的下转折点。数据低于a，隶属函数表示的值为0
+        b:隶属函数的上转折点。数据高于b，隶属函数表示的值为1
+        函数采用的是（偏大型）梯形型隶属函数
+        '''
+        matrix_index = []
+        for item in data:
+            if item < a:
+                matrix_index.append(0)
+            elif a <= item < b:
+                val = (item - a) / (b - a)
+                matrix_index.append(val)
+            else:
+                matrix_index.append(1)
+        return np.array(matrix_index)
+
+    # 偏小型隶属函数
+    def pianxiaoxing_membership_function(self, data, a=60, b=25):
+        ''' 
+        a:隶属函数的上转折点。数据低于a，隶属函数表示的值为1
+        b:隶属函数的下转折点。数据高于b，隶属函数表示的值为0
+        函数采用的是（偏小型）梯形型隶属函数
+        '''
+        matrix_index = []
+        for item in data:
+            if item < a:
+                matrix_index.append(1)
+            elif a <= item < b:
+                val = (b - item) / (b - a)
+                matrix_index.append(val)
+            else:
+                matrix_index.append(0)
+        return np.array(matrix_index)
+
+    # 中间型隶属函数
+    def zhongjianxing_membership_function(self, data, a=25, b=30, c=50, d=60):
+        ''' 
+        a:隶属函数的上转折点。数据低于a，隶属函数表示的值为0
+        b:梯形的左顶点，【b，c】之间都是1
+        c：梯形的右顶点
+        d:隶属函数的下转折点。数据高于d，隶属函数表示的值为0
+        函数采用的是（中间型）梯形型隶属函数
+        '''
+        matrix_index = []
+        for item in data:
+            if item < a:
+                matrix_index.append(0)
+            elif a <= item < b:
+                val = (b - item) / (b - a)
+                matrix_index.append(val)
+            elif b <= item < c:
+                matrix_index.append(1)
+            elif c <= item < d:
+                val = (d - item) / (d - c)
+                matrix_index.append(val)
+            else:
+                matrix_index.append(0)
+        return np.array(matrix_index)
+
+    #隶属函数计算隶属度
+    def membership_function(self, data, leixing=[1, 2, 3, 4]):
+        '''
+        输入参数：
+        data：表示初始数据表
+        leixing：列为x*1矩阵，x为指标个数
+
+        例如，判断不同人的综合素质，指标有年龄、健康、贫富（初始数据表的行索引），数据表的列索引为不同的人A,B,C
+        首先给data添加leixing列（隶属类型），数值为1，2，3，4,分别表示偏大、偏小，中间型
+        '''
+        data_yuanshi = np.array(data)
+        leixing = np.array(leixing)
+
+        # 添加数据列，用于判断数据类型
+        data_xin = np.hstack((data_yuanshi, leixing.reshape(-1, 1)))
+        print('原始矩阵为：', data_yuanshi)
+        print('包含隶属类型的矩阵为：', data_xin)
+
+        matrix_mohu = []
+
+        # 对data不同行进行数值判断
+        # 判断后套进不同函数
+        for index in range(len(data_xin)):
+            if data_xin[index, -1] == 1:  # 为偏大型指标
+                mohu = self.piandaxing_membership_function(data_xin[index, :-1])
+                matrix_mohu.append(mohu)
+            elif data_xin[index, -1] == 2:  # 为偏小型指标
+                mohu = self.pianxiaoxing_membership_function(data_xin[index, :-1])
+                matrix_mohu.append(mohu)
+            elif data_xin[index, -1] == 3:  # 为中间型指标
+                mohu = self.zhongjianxing_membership_function(data_xin[index, :-1])
+                matrix_mohu.append(mohu)
+            else:
+                pass  # 处理其他情况
+
+        #最后返回隶属函数处理的模糊矩阵
+        return np.array(matrix_mohu) 
+
+    #模糊合成函数
+    def mohuhecheng_function(self,matrix_mohu):
+
+        '''
+        输入：matrimatrix_mohu:通过membership_function方法得到的模糊矩阵
+
+        使用点乘的方法进行模糊合成，即权重向量weights和模糊矩阵的点乘（不是矩阵的乘法）
+
+        '''
+
+        #加权模糊向量=权重向量*模糊向量
+        matrix_jiaquanmohu=np.dot(self.weights,matrix_mohu)
+        
+        return matrix_jiaquanmohu
+
+
+    #归一化函数
+    def normalize_function(self,matrix_jiaquanmohu):
+        
+        matrix_normalized=matrix_jiaquanmohu/np.sum(matrix_jiaquanmohu)
+
+        return matrix_jiaquanmohu
+
+
+    #最后确定选择哪个评语（方案）
+    def quedingfangan_function(self,matrix_jiaquanmohu,pingjiaji=['方案1','方案2','方案3','方案4'])
+
+        '''
+        matrix_jiaquanmohu:加权模糊向量
+        pingjiaji：模糊评价里的评语集（方案集）
+
+        '''
+                                                                  
+        # 找到 V_normalized 中最大值的索引
+        max_index=np.argmax(matrix_jiaquanmohu)
+
+        #找到最大值对应的评语（方案）
+        fangan_pingxuan=pingjiaji[max_index]
+
+        print('最终的方案（评语）为：',fangan_pingxuan)
+
+        return fangan_pingxuan
+        
+
+        
